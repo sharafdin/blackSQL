@@ -86,5 +86,4 @@ This tool is intended for legal security testing and educational purposes only. 
 
 ## License
 
-MIT License 
 blackSQL is an open-source package licensed under the [MIT License](LICENSE) 
