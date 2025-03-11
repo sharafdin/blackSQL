@@ -9,6 +9,8 @@ import concurrent.futures
 import time
 import os
 from urllib.parse import parse_qsl, urlparse
+import threading
+import queue
 
 from ..utils.http_utils import RequestHandler
 from ..utils.cli import print_status, progress_bar
@@ -58,6 +60,11 @@ class Scanner:
         # Parse data and cookies
         self.data = parse_post_data(data) if data else {}
         self.cookies = parse_cookies(cookies) if cookies else {}
+
+        # Thread-safe structures
+        self.lock = threading.Lock()
+        self.result_queue = queue.Queue()
+        self.scan_progress = {"completed": 0, "total": 0}
 
         # Create request handler
         self.request_handler = RequestHandler(
@@ -207,11 +214,43 @@ class Scanner:
             extraction_results = extractor.extract_all()
             results['extraction'] = extraction_results
 
-        # Store results
-        if results['is_vulnerable']:
-            self.vulnerabilities.append(results)
+        # Update progress
+        with self.lock:
+            self.scan_progress["completed"] += 1
+            progress = self.scan_progress["completed"] / \
+                self.scan_progress["total"] * 100
+            self.result_queue.put(results)
+
+            # Update progress bar
+            progress_bar(
+                self.scan_progress["completed"],
+                self.scan_progress["total"],
+                prefix=f'Progress:',
+                suffix=f'Complete ({self.scan_progress["completed"]}/{self.scan_progress["total"]})',
+                length=50
+            )
 
         return results
+
+    def worker(self, param_queue):
+        """
+        Worker function for thread pool
+
+        Args:
+            param_queue (Queue): Queue of parameters to scan
+        """
+        while not param_queue.empty():
+            try:
+                parameter = param_queue.get(block=False)
+                self.scan_parameter(parameter)
+                param_queue.task_done()
+            except queue.Empty:
+                break
+            except Exception as e:
+                self.logger.error(f"Error in worker thread: {str(e)}")
+                with self.lock:
+                    self.scan_progress["completed"] += 1
+                param_queue.task_done()
 
     def start(self):
         """Start scanning process"""
@@ -228,51 +267,35 @@ class Scanner:
             return
 
         # Display parameters to scan
+        self.params = list(set(self.params))  # Remove duplicates
         self.logger.info(f"Parameters to scan: {', '.join(self.params)}")
         print_status(f"Parameters to scan: {', '.join(self.params)}", "info")
 
-        # Use ThreadPoolExecutor to scan parameters in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.threads) as executor:
-            # Submit tasks
-            future_to_param = {executor.submit(
-                self.scan_parameter, param): param for param in self.params}
+        # Initialize progress tracking
+        self.scan_progress["total"] = len(self.params)
+        self.scan_progress["completed"] = 0
 
-            # Process results as they complete
-            total_params = len(self.params)
-            completed = 0
+        # Create parameter queue
+        param_queue = queue.Queue()
+        for param in self.params:
+            param_queue.put(param)
 
-            for future in concurrent.futures.as_completed(future_to_param):
-                param = future_to_param[future]
-                try:
-                    result = future.result()
-                    completed += 1
+        # Create and start worker threads
+        threads = []
+        for _ in range(min(self.threads, len(self.params))):
+            thread = threading.Thread(target=self.worker, args=(param_queue,))
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
 
-                    # Update progress bar
-                    progress_bar(completed, total_params,
-                                 prefix=f'Progress:',
-                                 suffix=f'Complete ({completed}/{total_params})',
-                                 length=50)
+        # Wait for all parameters to be processed
+        param_queue.join()
 
-                    # Report vulnerability if found
-                    if result['is_vulnerable']:
-                        print_status(
-                            f"Parameter '{param}' is vulnerable to SQL injection", "vuln")
-                        print_status(
-                            f"Techniques: {', '.join(result['techniques'])}", "info")
-                        print_status(
-                            f"Database type: {result['database_type'] or 'Unknown'}", "info")
-                except Exception as e:
-                    self.logger.error(
-                        f"Error scanning parameter {param}: {str(e)}")
-                    print_status(
-                        f"Error scanning parameter {param}: {str(e)}", "error")
-                    completed += 1
-
-                    # Update progress bar
-                    progress_bar(completed, total_params,
-                                 prefix=f'Progress:',
-                                 suffix=f'Complete ({completed}/{total_params})',
-                                 length=50)
+        # Collect results from the queue
+        while not self.result_queue.empty():
+            result = self.result_queue.get()
+            if result['is_vulnerable']:
+                self.vulnerabilities.append(result)
 
         # Display results summary
         end_time = time.time()
