@@ -19,7 +19,7 @@ An advanced SQL Injection scanner with support for Error-Based, Union-Based, Boo
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/blackSQL.git
+git clone https://github.com/sharafdin/blackSQL.git
 cd blackSQL
 pip install -r requirements.txt
 ```

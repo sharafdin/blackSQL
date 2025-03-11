@@ -58,7 +58,7 @@ def print_banner():
 {Fore.RED}█▄█ █▄▄ █▀█ █▄▄ █░█   ▄█ █▄█ █▄▄
 
 {Fore.CYAN}[*] {Fore.WHITE}Advanced SQL Injection Scanner
-{Fore.CYAN}[*] {Fore.WHITE}Author: sharafdin
+{Fore.CYAN}[*] {Fore.WHITE}Author: Mr Sharafdin
 {Fore.CYAN}[*] {Fore.WHITE}Version: 1.0.0
     """
     print(banner)

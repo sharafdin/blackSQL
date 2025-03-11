@@ -3,7 +3,7 @@
 
 """
 blackSQL - Advanced SQL Injection Scanner
-Author: sharafdin
+Author: Mr Sharafdin
 License: MIT
 """
 
