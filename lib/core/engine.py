@@ -17,6 +17,7 @@ from ..utils.cli import print_status, progress_bar
 from ..utils.validator import extract_params, parse_cookies, parse_post_data
 from ..utils.logger import VulnerabilityLogger
 from ..payloads.sql_payloads import ERROR_BASED, BOOLEAN_BASED, TIME_BASED, UNION_BASED, DB_FINGERPRINT, WAF_BYPASS
+from ..payloads.waf_bypass import WAFBypass
 from ..techniques.error_based import ErrorBasedDetector
 from ..techniques.boolean_based import BooleanBasedDetector
 from ..techniques.time_based import TimeBasedDetector
@@ -56,6 +57,7 @@ class Scanner:
         self.dump = dump
         self.batch = batch
         self.logger = logger
+        self.use_waf_bypass = True  # Enable WAF bypass by default
 
         # Parse data and cookies
         self.data = parse_post_data(data) if data else {}
@@ -102,6 +104,16 @@ class Scanner:
             self.boolean_payloads = BOOLEAN_BASED[:6]
             self.time_payloads = TIME_BASED[:4]
             self.union_payloads = []  # Skip UNION-based at level 1
+
+            # Apply WAF bypass techniques to a subset of payloads
+            if self.use_waf_bypass:
+                self.error_payloads = self._apply_waf_bypass(
+                    self.error_payloads, 2)
+                self.boolean_payloads = self._apply_waf_bypass(
+                    self.boolean_payloads, 2)
+                self.time_payloads = self._apply_waf_bypass(
+                    self.time_payloads, 1)
+
         elif self.level == 2:
             # Medium scan
             self.error_payloads = ERROR_BASED[:15]
@@ -109,12 +121,64 @@ class Scanner:
             self.time_payloads = TIME_BASED[:10]
             # Skip UNION-based at level 2 (will run if others detect vulnerabilities)
             self.union_payloads = []
+
+            # Apply WAF bypass techniques to more payloads
+            if self.use_waf_bypass:
+                self.error_payloads = self._apply_waf_bypass(
+                    self.error_payloads, 3)
+                self.boolean_payloads = self._apply_waf_bypass(
+                    self.boolean_payloads, 3)
+                self.time_payloads = self._apply_waf_bypass(
+                    self.time_payloads, 2)
         else:
             # Level 3: Thorough scan - all payloads
             self.error_payloads = ERROR_BASED
             self.boolean_payloads = BOOLEAN_BASED
             self.time_payloads = TIME_BASED
             self.union_payloads = UNION_BASED  # Include UNION-based at level 3
+
+            # Apply WAF bypass techniques to all payloads
+            if self.use_waf_bypass:
+                self.error_payloads = self._apply_waf_bypass(
+                    self.error_payloads, 5)
+                self.boolean_payloads = self._apply_waf_bypass(
+                    self.boolean_payloads, 5)
+                self.time_payloads = self._apply_waf_bypass(
+                    self.time_payloads, 3)
+                self.union_payloads = self._apply_waf_bypass(
+                    self.union_payloads, 3)
+
+    def _apply_waf_bypass(self, payloads, variants_per_payload=2):
+        """
+        Apply WAF bypass techniques to payloads
+
+        Args:
+            payloads (list): Original payloads
+            variants_per_payload (int): Number of variants to generate per payload
+
+        Returns:
+            list: Modified payloads with WAF bypass techniques
+        """
+        modified_payloads = []
+
+        # Always include the original payloads
+        modified_payloads.extend(payloads)
+
+        # Add WAF bypass variants
+        for payload in payloads:
+            bypass_payloads = WAFBypass.get_bypass_payloads(
+                payload, variants_per_payload)
+            # Skip the first one which is the original
+            modified_payloads.extend(bypass_payloads[1:])
+
+        # Limit the number of payloads to avoid excessive requests
+        max_payloads = 100
+        if len(modified_payloads) > max_payloads:
+            self.logger.info(
+                f"Limiting WAF bypass payloads from {len(modified_payloads)} to {max_payloads}")
+            modified_payloads = modified_payloads[:max_payloads]
+
+        return modified_payloads
 
     def scan_parameter(self, parameter):
         """
