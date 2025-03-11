@@ -16,6 +16,7 @@ from ..utils.http_utils import RequestHandler
 from ..utils.cli import print_status, progress_bar
 from ..utils.validator import extract_params, parse_cookies, parse_post_data
 from ..utils.logger import VulnerabilityLogger
+from ..utils.waf_detector import WAFDetector
 from ..payloads.sql_payloads import ERROR_BASED, BOOLEAN_BASED, TIME_BASED, UNION_BASED, DB_FINGERPRINT, WAF_BYPASS
 from ..payloads.waf_bypass import WAFBypass
 from ..techniques.error_based import ErrorBasedDetector
@@ -329,6 +330,17 @@ class Scanner:
             print_status(
                 "No parameters found to scan. Please provide parameters with --params or use a URL with query parameters.", "warning")
             return
+
+        # Check for WAF
+        print_status("Checking if target is protected by a WAF...", "info")
+        is_waf, waf_name = WAFDetector.check_target(
+            self.request_handler, self.url, self.logger)
+
+        # If WAF is detected, make sure WAF bypass is enabled
+        if is_waf:
+            self.use_waf_bypass = True
+            # Regenerate payloads with WAF bypass
+            self.prepare_payloads()
 
         # Display parameters to scan
         self.params = list(set(self.params))  # Remove duplicates
