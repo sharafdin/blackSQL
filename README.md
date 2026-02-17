@@ -2,6 +2,8 @@
 
 An advanced SQL Injection scanner with support for Error-Based, Union-Based, Boolean-Based, and Time-Based detection techniques.
 
+> **Note:** blackSQL is being rewritten in Rust. The original Python implementation is in the [`legacy/`](legacy/) folder.
+
 ## Features
 
 - Multiple SQL injection detection techniques:
@@ -18,9 +20,18 @@ An advanced SQL Injection scanner with support for Error-Based, Union-Based, Boo
 
 ## Installation
 
+**Rust (recommended, when available):**
+
 ```bash
 git clone https://github.com/sharafdin/blackSQL.git
 cd blackSQL
+cargo build --release
+```
+
+**Legacy Python version:**
+
+```bash
+cd legacy
 pip install -r requirements.txt
 ```
 
@@ -29,13 +40,18 @@ pip install -r requirements.txt
 Basic usage:
 
 ```bash
-python blacksql.py -u "http://example.com/page.php?id=1"
+# Rust (when ready)
+./target/release/blacksql -u "http://example.com/page.php?id=1"
+
+# Legacy Python
+cd legacy && python blacksql.py -u "http://example.com/page.php?id=1"
 ```
 
 Advanced options:
 
 ```bash
-python blacksql.py -u "http://example.com/page.php?id=1" --level 3 --threads 10 --dump
+# Legacy Python
+cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" --level 3 --threads 10 --dump
 ```
 
 ### Command Line Arguments
@@ -59,25 +75,25 @@ python blacksql.py -u "http://example.com/page.php?id=1" --level 3 --threads 10 
 Scan a URL with a specific parameter:
 
 ```bash
-python blacksql.py -u "http://example.com/page.php?id=1" -p "id"
+cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" -p "id"
 ```
 
 Scan with POST data:
 
 ```bash
-python blacksql.py -u "http://example.com/login.php" --data "username=admin&password=test"
+cd legacy && python blacksql.py -u "http://example.com/login.php" --data "username=admin&password=test"
 ```
 
 Use a proxy and increase scan level:
 
 ```bash
-python blacksql.py -u "http://example.com/page.php?id=1" --proxy "http://127.0.0.1:8080" --level 3
+cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" --proxy "http://127.0.0.1:8080" --level 3
 ```
 
 Dump database when vulnerabilities are found:
 
 ```bash
-python blacksql.py -u "http://example.com/page.php?id=1" --dump
+cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" --dump
 ```
 
 ## Disclaimer
