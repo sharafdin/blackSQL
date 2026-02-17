@@ -13,6 +13,9 @@ venv/
 env/
 ENV/
 
+# Rust
+/target/
+
 # Project specific
 .cursorrules
 logs/
@@ -21,3 +24,7 @@ output/
 # OS specific
 .DS_Store
 Thumbs.db 
+
+# Added by cargo
+
+/target

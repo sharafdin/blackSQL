@@ -1,0 +1,17 @@
+[package]
+name = "blacksql"
+version = "0.1.0"
+edition = "2021"
+description = "Advanced SQL Injection Scanner"
+authors = ["Mr Sharafdin"]
+
+[[bin]]
+name = "blacksql"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+colored = "2"
+regex = "1"
+once_cell = "1"
+urlencoding = "2"
