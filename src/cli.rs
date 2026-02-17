@@ -6,10 +6,7 @@ use colored::Colorize;
 pub fn print_banner() {
     let line1 = "█▄▄ █░░ ▄▀█ █▀▀ █▄▀   █▀ █▀█ █░░";
     let line2 = "█▄█ █▄▄ █▀█ █▄▄ █░█   ▄█ █▄█ █▄▄";
-    println!(
-        "\n{}",
-        format!("{}\n{}", line1, line2).red()
-    );
+    println!("\n{}", format!("{}\n{}", line1, line2).red());
     println!("{} Advanced SQL Injection Scanner", "[*]".cyan());
     println!("{} Author: Mr Sharafdin", "[*]".cyan());
     println!("{} Version: 1.0.0\n", "[*]".cyan());
