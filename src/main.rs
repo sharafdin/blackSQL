@@ -1,25 +1,33 @@
 //! blackSQL - Advanced SQL Injection Scanner
-//! Phase 1: CLI, URL validation, banner, param list. No HTTP yet.
 
 use blacksql::cli::{print_banner, print_error, print_status, Status};
 use blacksql::config::Config;
+use blacksql::engine::{run_scan, ScannerConfig};
+use blacksql::validator::{extract_params_from_url, parse_cookies, parse_post_data, validate_url};
 use clap::CommandFactory;
-use blacksql::validator::{extract_params_from_url, parse_post_data, validate_url};
 use std::collections::HashSet;
 use std::process;
 
 fn main() {
-    // No args -> print help and exit 1 (same as Python)
+    ctrlc::set_handler(move || {
+        blacksql::cli::print_status("Scan interrupted by user", blacksql::cli::Status::Warning);
+        process::exit(0);
+    })
+    .expect("Error setting Ctrl+C handler");
+
     if std::env::args().len() <= 1 {
         let _ = Config::command().print_help();
         process::exit(1);
     }
 
-    print_banner();
-
     let config = Config::from_args();
 
-    // Require URL (same as Python: no URL -> error and exit 1)
+    if let Err(e) = blacksql::logger::init(config.output.as_deref()) {
+        eprintln!("Warning: could not create log file: {}", e);
+    }
+
+    print_banner();
+
     let url = match config.url() {
         Some(u) => u,
         None => {
@@ -33,9 +41,7 @@ fn main() {
         process::exit(1);
     }
 
-    // Build param list: from URL query and/or -p and/or --data keys (same as engine init)
     let mut params: Vec<String> = Vec::new();
-
     if let Some(ref p) = config.params_list() {
         params.extend(p.clone());
     }
@@ -49,8 +55,6 @@ fn main() {
             params.push(k.clone());
         }
     }
-
-    // Dedupe (engine uses list(set(params)))
     let params: Vec<String> = params.into_iter().collect::<HashSet<_>>().into_iter().collect();
 
     if params.is_empty() {
@@ -58,12 +62,32 @@ fn main() {
             "No parameters to scan. Use a URL with query parameters, -p, or --data.",
             Status::Warning,
         );
-    } else {
-        print_status(
-            &format!("Parameters to scan: {}", params.join(", ")),
-            Status::Info,
-        );
+        return;
     }
 
-    // Phase 1 done: banner printed, URL validated, params shown. Exit.
+    let data = config
+        .data
+        .as_deref()
+        .map(parse_post_data)
+        .unwrap_or_default();
+    let cookies = config
+        .cookies
+        .as_deref()
+        .map(parse_cookies)
+        .unwrap_or_default();
+
+    let scan_config = ScannerConfig {
+        url: url.to_string(),
+        params,
+        data,
+        cookies,
+        threads: config.threads,
+        timeout: config.timeout,
+        proxy: config.proxy.clone(),
+        level: config.level,
+        dump: config.dump,
+        batch: config.batch,
+    };
+
+    let _vulnerabilities = run_scan(scan_config);
 }

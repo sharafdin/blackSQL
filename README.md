@@ -2,7 +2,7 @@
 
 An advanced SQL Injection scanner with support for Error-Based, Union-Based, Boolean-Based, and Time-Based detection techniques.
 
-> **Note:** blackSQL is being rewritten in Rust. The original Python implementation is in the [`legacy/`](legacy/) folder.
+The **Rust implementation** is the main version. The original Python implementation is kept in [`legacy/`](legacy/) for reference.
 
 ## Features
 
@@ -13,19 +13,27 @@ An advanced SQL Injection scanner with support for Error-Based, Union-Based, Boo
   - Union-Based SQL Injection
 - Multi-threaded scanning for faster results
 - Database type detection (MySQL, PostgreSQL, MSSQL, Oracle, SQLite)
-- Database enumeration (tables, columns, data)
+- Database enumeration (tables, columns, data) with `--dump`
 - Colorized CLI output
-- Structured logging (JSON/CSV)
-- WAF bypass techniques
+- File logging (`-o` or `logs/blacksql_<timestamp>.log`) and JSON/CSV export to `output/`
+- WAF detection and bypass techniques
 
 ## Installation
 
-**Rust (recommended, when available):**
+**From source (recommended):**
 
 ```bash
 git clone https://github.com/sharafdin/blackSQL.git
 cd blackSQL
 cargo build --release
+```
+
+**Install the binary (after building):**
+
+```bash
+cargo install --path .
+# Then run from anywhere:
+blacksql -u "http://example.com/page.php?id=1"
 ```
 
 **Legacy Python version:**
@@ -35,66 +43,78 @@ cd legacy
 pip install -r requirements.txt
 ```
 
-## Usage
+## Usage (Rust)
 
-Basic usage:
+Basic scan:
 
 ```bash
-# Rust (when ready)
 ./target/release/blacksql -u "http://example.com/page.php?id=1"
-
-# Legacy Python
-cd legacy && python blacksql.py -u "http://example.com/page.php?id=1"
 ```
 
-Advanced options:
+With options:
 
 ```bash
-# Legacy Python
-cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" --level 3 --threads 10 --dump
+./target/release/blacksql -u "http://example.com/page.php?id=1" \
+  --level 3 \
+  --threads 10 \
+  --dump \
+  -o /path/to/scan.log
 ```
 
-### Command Line Arguments
+| Option            | Description |
+|-------------------|-------------|
+| `-u, --url`       | Target URL (required). |
+| `-p, --params`    | Parameters to scan (e.g. `id,page`). Default: from URL or `--data`. |
+| `--data`          | POST body (e.g. `id=1&page=2`) for POST-based scanning. |
+| `-c, --cookies`   | Cookie string (e.g. `PHPSESSID=value; admin=0`). |
+| `-t, --threads`   | Number of threads (default: 5). |
+| `--timeout`       | Request timeout in seconds (default: 10.0). |
+| `--proxy`         | Proxy URL (e.g. `http://127.0.0.1:8080`). |
+| `--level`         | Scan depth 1–3 (default: 1). Higher = more payloads. |
+| `--dump`          | When a parameter is vulnerable, enumerate DBs/tables/columns and include in results. |
+| `--batch`         | Non-interactive (no prompts). |
+| `-o, --output`    | **Log file path.** All scan messages are written here. If omitted, uses `logs/blacksql_<timestamp>.log`. JSON/CSV results are always written to `output/blacksql_results_<timestamp>.json` and `.csv` when vulnerabilities are found. |
 
-| Option          | Description                                         |
-| --------------- | --------------------------------------------------- |
-| `-u, --url`     | Target URL (e.g., http://example.com/page.php?id=1) |
-| `-p, --params`  | Specify parameters to scan (e.g., 'id,page')        |
-| `--data`        | POST data (e.g., 'id=1&page=2')                     |
-| `-c, --cookies` | HTTP cookies (e.g., 'PHPSESSID=value; admin=0')     |
-| `-t, --threads` | Number of threads (default: 5)                      |
-| `--timeout`     | Connection timeout in seconds (default: 10.0)       |
-| `--proxy`       | Use a proxy (e.g., 'http://127.0.0.1:8080')         |
-| `--level`       | Scan level (1-3, higher = more tests)               |
-| `--dump`        | Attempt to dump database tables when vulnerable     |
-| `--batch`       | Never ask for user input, use the default behavior  |
-| `-o, --output`  | Save scan results to a file (CSV/JSON)              |
+**Output locations:**
 
-## Examples
+- **Log file:** Path from `-o`, or `logs/blacksql_YYYYMMDD_HHMMSS.log`.
+- **JSON/CSV (when vulns found):** `output/blacksql_results_YYYYMMDD_HHMMSS.json` and `.csv`.
 
-Scan a URL with a specific parameter:
+### Examples (Rust)
+
+Scan a specific parameter:
 
 ```bash
-cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" -p "id"
+./target/release/blacksql -u "http://example.com/page.php?id=1" -p "id"
 ```
 
 Scan with POST data:
 
 ```bash
-cd legacy && python blacksql.py -u "http://example.com/login.php" --data "username=admin&password=test"
+./target/release/blacksql -u "http://example.com/login.php" --data "username=admin&password=test"
 ```
 
-Use a proxy and increase scan level:
+Use a proxy and higher level:
 
 ```bash
-cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" --proxy "http://127.0.0.1:8080" --level 3
+./target/release/blacksql -u "http://example.com/page.php?id=1" --proxy "http://127.0.0.1:8080" --level 3
 ```
 
-Dump database when vulnerabilities are found:
+Dump database info when vulnerable:
 
 ```bash
-cd legacy && python blacksql.py -u "http://example.com/page.php?id=1" --dump
+./target/release/blacksql -u "http://example.com/page.php?id=1" --dump
 ```
+
+---
+
+### Legacy Python usage
+
+```bash
+cd legacy && python blacksql.py -u "http://example.com/page.php?id=1"
+```
+
+See the table above for the same options; `-o` is the log file path in both versions.
 
 ## Disclaimer
 
@@ -102,4 +122,4 @@ This tool is intended for legal security testing and educational purposes only. 
 
 ## License
 
-blackSQL is an open-source package licensed under the [MIT License](LICENSE) 
+blackSQL is open-source under the [MIT License](LICENSE).
