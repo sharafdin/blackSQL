@@ -19,7 +19,7 @@ ENV/
 # Project specific
 .cursorrules
 logs/
-output/
+/output/
 
 # OS specific
 .DS_Store
